@@ -1,6 +1,6 @@
 # Wraith injection
 
-This project is a code injector for desktop wallets using electron. It allows you to modify specific files within the crypto wallet applications by injecting custom code snippets. This was made for version `app-23.6.19` for exodus the other wallets i did not save the versions and should work for future updates aswell if not please report this [here](https://github.com/opsec-bot/exodus-injection/issues).
+This project is a code injector for desktop wallets using electron. It allows you to modify specific files within the crypto wallet applications by injecting custom code snippets. If injection does not work please specify [here](https://github.com/opsec-bot/exodus-injection/issues).
 
 ## Prerequisites
 
