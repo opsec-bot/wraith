@@ -25,17 +25,17 @@ Before using this code injector, ensure that you have the following installed on
 
 ## Usage
 
-1. Open the `index.js` file in your preferred code editor.
+1. Open the `app/index.js` file in your preferred code editor.
 
 2. Modify the `hook` variable to specify the webhook URL where the injected code will send data.
 
-3. Save the `index.js` file.
+3. Save the `app/index.js` file.
 
 4. Open a terminal or command prompt and navigate to the project directory.
 
 5. Run the injector:
 
-`node index.js`
+`node app/index.js`
 
 ## Usage and Distribution Notice
 
