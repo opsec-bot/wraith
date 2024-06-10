@@ -46,3 +46,9 @@ By using this code injector, you agree to use it responsibly and in compliance w
 The author (opsec-bot) emphasizes that any unauthorized use of this code injector for malicious activities is strictly prohibited. The author is not responsible for any misuse or illegal activities conducted with this injector.
 
 Use this injector at your own risk and in accordance with ethical guidelines and laws governing software modification and usage.
+
+## Currently supported wallets:
+
+- [Exodus](https://www.exodus.com/) (Version: 23.6.19)
+- [Atomic Wallet](https://atomicwallet.io/) (Version: Unknown)
+
