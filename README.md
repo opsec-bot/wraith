@@ -1,6 +1,6 @@
-# Exodus Code Injector
+# Wraith injection
 
-This project is a code injector for an Electron application called Exodus. It allows you to modify specific files within the Exodus application by injecting custom code snippets. This was made for version `app-23.6.19` and should work for future updates aswell if not please report this [here](https://github.com/opsec-bot/exodus-injection/issues).
+This project is a code injector for desktop wallets using electron. It allows you to modify specific files within the crypto wallet applications by injecting custom code snippets. This was made for version `app-23.6.19` for exodus the other wallets i did not save the versions and should work for future updates aswell if not please report this [here](https://github.com/opsec-bot/exodus-injection/issues).
 
 ## Prerequisites
 
@@ -13,11 +13,11 @@ Before using this code injector, ensure that you have the following installed on
 
 1. Clone the repository:
 
-`git clone https://github.com/opsec-bot/exodus-injection`
+`git clone https://github.com/opsec-bot/wraith`
 
 2. Navigate to the project directory:
 
-`cd exodus-injection`
+`cd wraith`
 
 3. Install the dependencies:
 
@@ -39,7 +39,7 @@ Before using this code injector, ensure that you have the following installed on
 
 ## Usage and Distribution Notice
 
-This code injector is intended for personal use with the Exodus application. The injector is not meant to be distributed or used for malicious purposes, including but not limited to malware distribution.
+This code injector is intended for personal use . The injector is not meant to be distributed or used for malicious purposes, including but not limited to malware distribution.
 
 By using this code injector, you agree to use it responsibly and in compliance with all applicable laws and regulations. You should not use this code injector on applications or systems without obtaining proper permission or authorization.
 
